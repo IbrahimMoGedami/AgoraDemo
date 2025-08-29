@@ -1,0 +1,267 @@
+//
+//  AgoraService.swift
+//  ParentApp
+//
+//  Created by Ibrahim Mo Gedami on 25/08/2025.
+//
+
+import Foundation
+import AgoraRtcKit
+import AVFAudio
+
+class AgoraService: NSObject, ObservableObject {
+    
+    @Published var isInCall = false
+    @Published var isMuted = false
+    @Published var isSpeakerEnabled = true
+    @Published var connectionState: AgoraConnectionState = .disconnected
+    @Published var currentChannel: String?
+
+    private var agoraKit: AgoraRtcEngineKit?
+    private var uid: UInt = 0
+    
+    override init() {
+        super.init()
+        setupAgoraEngine()
+        setupAudioSession()
+    }
+    
+    private func setupAgoraEngine() {
+        let config = AgoraRtcEngineConfig()
+        config.appId = Constants.appId
+        agoraKit = AgoraRtcEngineKit.sharedEngine(with: config, delegate: self)
+        
+        // Configure audio settings
+        agoraKit?.setChannelProfile(.communication)
+        agoraKit?.enableAudio()
+        agoraKit?.setAudioProfile(.speechStandard)
+        
+        // Set audio session configuration
+        agoraKit?.setAudioSessionOperationRestriction(.all)
+        agoraKit?.enableAudioVolumeIndication(200, smooth: 3, reportVad: true)
+    }
+    
+    private func setupAudioSession() {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .allowBluetoothA2DP])
+            try audioSession.setActive(true)
+        } catch {
+            print("Failed to setup audio session: \(error)")
+        }
+    }
+    
+    func joinChannel(_ channel: String, token: String? = nil) {
+        guard let agoraKit else { return }
+        
+        // Validate and sanitize channel name
+        let sanitizedChannel = sanitizeChannelName(channel)
+        print("Joining channel: \(sanitizedChannel)")
+        
+        connectionState = .connecting
+        currentChannel = sanitizedChannel
+        
+        let option = AgoraRtcChannelMediaOptions()
+        option.clientRoleType = .broadcaster
+        option.channelProfile = .communication
+        
+        // Use joinChannel with joinSuccess callback for better error handling
+        let result = agoraKit.joinChannel(
+            byToken: Constants.token,
+            channelId: Constants.channelName,
+            uid: 0,
+            mediaOptions: option,
+            joinSuccess: nil
+        )
+        
+        if result != 0 {
+            connectionState = .failed
+            print("Join channel failed with error code: \(result)")
+            print("Error description: \(getAgoraErrorDescription(Int(result)))")
+        }
+    }
+    
+    // Sanitize channel name to meet Agora requirements
+    private func sanitizeChannelName(_ channel: String) -> String {
+        // Remove any invalid characters
+        let allowedCharacterSet = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=[]{}|;:,.<>?/")
+        let sanitized = channel.unicodeScalars.filter { allowedCharacterSet.contains($0) }.map { String($0) }.joined()
+        
+        // Trim to max 64 characters if needed
+        if sanitized.count > 64 {
+            return String(sanitized.prefix(64))
+        }
+        
+        return sanitized.isEmpty ? "default_channel_\(Int(Date().timeIntervalSince1970))" : sanitized
+    }
+    
+    // Helper function to get error description
+    private func getAgoraErrorDescription(_ errorCode: Int) -> String {
+        switch errorCode {
+        case -1: return "Failed to initialize Agora engine"
+        case -2: return "Invalid argument"
+        case -3: return "Not ready"
+        case -4: return "Not supported"
+        case -5: return "Refused"
+        case -6: return "Buffer too small"
+        case -7: return "Not initialized"
+        case -8: return "No permission"
+        case -9: return "Timed out"
+        case -10: return "Canceled"
+        case -11: return "Too often"
+        case -12: return "Bind socket error"
+        case -13: return "Net down"
+        case -14: return "No buffers"
+        case -15: return "No memory"
+        case -16: return "Port already in use"
+        case -17: return "Too many items"
+        case -18: return "Key expired"
+        case -19: return "Permission denied"
+        case -20: return "Connection interrupted"
+        case -21: return "Connection lost"
+        case -22: return "Not in channel"
+        case -23: return "Size too large"
+        case -24: return "Invalid URL"
+        case -25: return "Invalid domain"
+        case -26: return "DNS resolution failed"
+        case -27: return "DNS timeout"
+        case -101: return "Invalid App ID"
+        case -102: return "Invalid channel name"
+        case -103: return "Channel key expired"
+        case -104: return "Channel key rejected"
+        case -105: return "Socket error"
+        case -106: return "Too many data streams"
+        case -107: return "Stream not found"
+        case -108: return "Decryption failed"
+        case -109: return "User ignored"
+        case -110: return "User muted"
+        case -111: return "User not found"
+        case -112: return "User not in channel"
+        case -113: return "User not authorized"
+        case -114: return "Audio device error"
+        case -115: return "Video device error"
+        case -116: return "Audio recording error"
+        case -117: return "Audio playback error"
+        case -118: return "No recording device"
+        case -119: return "No playback device"
+        case -120: return "Network error"
+        case -121: return "Network timeout"
+        case -122: return "Network response error"
+        case -123: return "No network"
+        case -124: return "Network busy"
+        case -125: return "Network no route"
+        case -126: return "Network unreachable"
+        case -127: return "Network congestion"
+        case -128: return "Network reset"
+        case -129: return "Network aborted"
+        case -130: return "Network refused"
+        case -131: return "Network down"
+        case -132: return "Network invalid argument"
+        case -133: return "Network address in use"
+        case -134: return "Network not connected"
+        case -135: return "Network not initialized"
+        case -136: return "Network not ready"
+        case -137: return "Network not supported"
+        case -138: return "Network protocol error"
+        case -139: return "Network security error"
+        case -140: return "Network ssl error"
+        case -141: return "Network ssl handshake failed"
+        case -142: return "Network ssl peer certificate error"
+        case -143: return "Network ssl peer certificate expired"
+        case -144: return "Network ssl peer certificate not yet valid"
+        case -145: return "Network ssl peer certificate revoked"
+        case -146: return "Network ssl peer certificate unknown"
+        case -147: return "Network ssl peer certificate bad"
+        case -148: return "Network ssl peer certificate unsupported"
+        case -149: return "Network ssl peer certificate incomplete"
+        case -150: return "Network ssl peer certificate format error"
+        default: return "Unknown error (\(errorCode))"
+        }
+    }
+    
+    func leaveChannel() {
+        guard let agoraKit = agoraKit else { return }
+        
+        agoraKit.leaveChannel { [weak self] stats in
+            guard let self else { return }
+            self.isInCall = false
+            self.connectionState = .disconnected
+            self.currentChannel = nil
+            print("Left channel successfully")
+        }
+    }
+    
+    func toggleMute() {
+        guard let agoraKit else { return }
+        
+        isMuted.toggle()
+        agoraKit.muteLocalAudioStream(isMuted)
+        print("Audio muted: \(isMuted)")
+    }
+    
+    func toggleSpeaker() {
+        guard let agoraKit = agoraKit else { return }
+        
+        isSpeakerEnabled.toggle()
+        agoraKit.setEnableSpeakerphone(isSpeakerEnabled)
+        print("Speaker enabled: \(isSpeakerEnabled)")
+    }
+    
+    deinit {
+        leaveChannel()
+        AgoraRtcEngineKit.destroy()
+    }
+
+}
+
+extension AgoraService: AgoraRtcEngineDelegate {
+    func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinChannel channel: String, withUid uid: UInt, elapsed: Int) {
+        DispatchQueue.main.async {
+            self.isInCall = true
+            self.connectionState = .connected
+            self.uid = uid
+            print("Successfully joined channel: \(channel) with UID: \(uid)")
+        }
+    }
+    
+    func rtcEngine(_ engine: AgoraRtcEngineKit, didLeaveChannelWith stats: AgoraChannelStats) {
+        DispatchQueue.main.async {
+            self.isInCall = false
+            self.connectionState = .disconnected
+            print("Left channel")
+        }
+    }
+    
+    private func rtcEngine(_ engine: AgoraRtcEngineKit, connectionChangedTo state: AgoraConnectionState, reason: AgoraConnectionChangedReason) {
+        DispatchQueue.main.async {
+            switch state {
+            case .connecting:
+                self.connectionState = .connecting
+                print("Connecting to channel...")
+            case .connected:
+                self.connectionState = .connected
+                print("Connected to channel")
+            case .reconnecting:
+                self.connectionState = .reconnecting
+                print("Reconnecting to channel...")
+            case .failed:
+                self.connectionState = .failed
+                print("Connection failed")
+            case .disconnected:
+                self.connectionState = .disconnected
+                print("Disconnected from channel")
+            @unknown default:
+                break
+            }
+        }
+    }
+    
+    func rtcEngine(_ engine: AgoraRtcEngineKit, didOccurError errorCode: AgoraErrorCode) {
+        DispatchQueue.main.async {
+            let errorDescription = self.getAgoraErrorDescription(Int(errorCode.rawValue))
+            print("Agora error \(errorCode.rawValue): \(errorDescription)")
+            self.connectionState = .failed
+        }
+    }
+    
+}

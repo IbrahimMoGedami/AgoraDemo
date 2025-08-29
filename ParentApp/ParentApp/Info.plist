@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app needs microphone access to make voice calls</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>voip</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>processing</string>
+	</array>
+    <key>FirebaseAppDelegateProxyEnabled</key>
+    <false/>
+
+    <!-- Disable Firebase In-App Messaging -->
+    <key>FirebaseInAppMessagingAutomaticDataCollectionEnabled</key>
+    <false/>
+
+    <!-- Disable Firebase Analytics if not needed -->
+    <key>FIREBASE_ANALYTICS_COLLECTION_ENABLED</key>
+    <false/>
+    <key>FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED</key>
+    <true/>
+</dict>
+</plist>
