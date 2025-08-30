@@ -13,6 +13,8 @@ struct SitterMainView: View {
     
     @EnvironmentObject var authService: FirebaseService
     @EnvironmentObject var agoraService: AgoraService
+    @Binding var showCallView: Bool
+    
     @State private var parents: [UserProfile] = []
     @State private var isLoading = false
     @State private var errorMessage = ""
@@ -20,24 +22,6 @@ struct SitterMainView: View {
     @State private var callListener: ListenerRegistration?
     
     var body: some View {
-//        VStack {
-//            if !parents.isEmpty {
-//                ParentsListView(parents: parents, isLoading: isLoading)
-//            } else {
-//                VStack {
-//                    Text("Waiting for calls...")
-//                        .font(.title2)
-//                        .foregroundColor(.gray)
-//                        .padding()
-//                    
-//                    if let user = authService.currentUser {
-//                        Text("Logged in as: \(user.email ?? "Unknown")")
-//                            .font(.subheadline)
-//                            .foregroundColor(.secondary)
-//                    }
-//                }
-//            }
-//        }
         List {
             if isLoading {
                 ProgressView("Loading parents...")
@@ -46,7 +30,7 @@ struct SitterMainView: View {
                     .foregroundColor(.gray)
             } else {
                 ForEach(parents) { parent in
-                    UserRow(user: parent, userType: "parent")
+                    ParentRow(parent: parent, showCallView: $showCallView)
                 }
             }
         }
@@ -103,45 +87,64 @@ struct SitterMainView: View {
 
 }
 
-struct UserRow: View {
+struct ParentRow: View {
     
     @EnvironmentObject var authService: FirebaseService
     @EnvironmentObject var agoraService: AgoraService
-    let user: UserProfile
-    let userType: String
+    let parent: UserProfile
+    @Binding var showCallView: Bool
+    
     @State private var isCalling = false
     @State private var callStatusListener: ListenerRegistration?
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading) {
-                Text(user.name).font(.headline)
-                Text(user.email).font(.subheadline).foregroundColor(.gray)
+            // Profile initial circle
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                
+                Text(parent.name.prefix(1).uppercased())
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.green)
             }
+            
+            VStack(alignment: .leading) {
+                Text(parent.name)
+                    .font(.headline)
+                Text(parent.email)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+            
             Spacer()
+            
             Button {
                 startCall()
             } label: {
                 Image(systemName: "phone.fill")
-                    .foregroundColor(.green)
+                    .foregroundColor(.blue)
                     .font(.title2)
             }
             .disabled(isCalling)
         }
         .padding(.vertical, 8)
-        .onDisappear { callStatusListener?.remove() }
+        .onDisappear {
+            callStatusListener?.remove()
+        }
     }
     
     private func startCall() {
         guard let callerId = authService.currentUser?.uid else { return }
         
         let timestamp = Int(Date().timeIntervalSince1970)
-        let channelName = "call_\(timestamp)_\(callerId.prefix(8))_\(user.id.prefix(8))"
+        let channelName = "call_\(timestamp)_\(callerId.prefix(8))_\(parent.id.prefix(8))"
         
         isCalling = true
         RingtoneManager.shared.playRingtone(.outgoing)
         
-        authService.createCall(from: callerId, to: user.id, channelName: channelName) { result in
+        authService.createCall(from: callerId, to: parent.id, channelName: channelName) { result in
             switch result {
             case .success:
                 setupCallMonitoring(channelName: channelName)

@@ -21,48 +21,90 @@ struct IncomingCallView: View {
     @State private var timeoutTimer: Timer?
     
     var body: some View {
-        VStack(spacing: 30) {
-            if isLoading {
-                ProgressView("Loading caller info...")
-            } else if let caller = callerProfile {
-                VStack(spacing: 20) {
-                    Text("Incoming Call")
-                        .font(.title2)
-                    
-                    Text(caller.name)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    
-                    Text(caller.email)
-                        .foregroundColor(.gray)
-                    
-                    HStack(spacing: 40) {
-                        Button {
-                            rejectCall()
-                        } label: {
-                            Image(systemName: "phone.down.fill")
+        ZStack {
+            // Background with blur effect
+            Color.black.opacity(0.8)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                if isLoading {
+                    ProgressView("Loading...")
+                        .tint(.white)
+                } else if let caller = callerProfile {
+                    VStack(spacing: 25) {
+                        // Caller profile image
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.2))
+                                .frame(width: 120, height: 120)
+                            
+                            Text(caller.name.prefix(1).uppercased())
+                                .font(.system(size: 50, weight: .bold))
                                 .foregroundColor(.white)
-                                .padding()
-                                .background(Color.red)
-                                .clipShape(Circle())
                         }
                         
-                        Button {
-                            acceptCall()
-                        } label: {
-                            Image(systemName: "phone.fill")
+                        VStack(spacing: 5) {
+                            Text(caller.name)
+                                .font(.title2)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.white)
-                                .padding()
-                                .background(Color.green)
-                                .clipShape(Circle())
+                            
+                            Text("Incoming Call")
+                                .font(.body)
+                                .foregroundColor(.white.opacity(0.8))
                         }
                     }
+                    
+                    Spacer()
+                    
+                    // Call action buttons
+                    HStack(spacing: 60) {
+                        // Decline button
+                        VStack {
+                            Button {
+                                rejectCall()
+                            } label: {
+                                Image(systemName: "phone.down.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.white)
+                                    .frame(width: 70, height: 70)
+                                    .background(Color.red)
+                                    .clipShape(Circle())
+                            }
+                            
+                            Text("Decline")
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.top, 5)
+                        }
+                        
+                        // Accept button
+                        VStack {
+                            Button {
+                                acceptCall()
+                            } label: {
+                                Image(systemName: "phone.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.white)
+                                    .frame(width: 70, height: 70)
+                                    .background(Color.green)
+                                    .clipShape(Circle())
+                            }
+                            
+                            Text("Accept")
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.top, 5)
+                        }
+                    }
+                    .padding(.bottom, 50)
+                } else {
+                    Text("Caller information not available")
+                        .foregroundColor(.white)
                 }
-            } else {
-                Text("Caller information not available")
             }
+            .padding()
         }
-        .padding()
         .onAppear {
             loadCallerInfo()
             setupCallStatusListener()

@@ -22,58 +22,111 @@ struct CallView: View {
     @State private var otherUserProfile: UserProfile?
     @State private var isLoadingProfile = true
     @State private var showCallEndedAlert = false
+    @State private var isMinimized = false
     
     var body: some View {
-        VStack(spacing: 30) {
-            // Call header
-            VStack {
-                if isLoadingProfile {
-                    ProgressView("Loading...")
-                } else if let profile = otherUserProfile {
-                    Text(profile.name).font(.title2).fontWeight(.bold)
-                    Text(profile.userType.capitalized).font(.subheadline).foregroundColor(.secondary)
+        if isMinimized {
+            minimizedCallView
+        } else {
+            fullCallView
+        }
+    }
+    
+    private var fullCallView: some View {
+        ZStack {
+            // Background with gradient
+            LinearGradient(
+                gradient: Gradient(colors: [Color.blue.opacity(0.7), Color.purple.opacity(0.7)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                // Caller info section
+                VStack(spacing: 15) {
+                    if isLoadingProfile {
+                        ProgressView("Loading...")
+                            .tint(.white)
+                    } else if let profile = otherUserProfile {
+                        // Profile image placeholder
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.2))
+                                .frame(width: 120, height: 120)
+                            
+                            Text(profile.name.prefix(1).uppercased())
+                                .font(.system(size: 50, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.bottom, 10)
+                        
+                        Text(profile.name)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                    }
+                    
+                    Text(connectionStatusText)
+                        .font(.subheadline)
+                        .foregroundColor(connectionStatusColor)
+                        .padding(.top, 5)
+                    
+                    Text(timeString(from: callDuration))
+                        .font(.system(size: 24, weight: .medium, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.top, 5)
                 }
                 
-                Text("Ongoing Call")
-                    .font(.title2)
+                Spacer()
                 
-                Text(timeString(from: callDuration))
-                    .font(.title3)
-                    .monospacedDigit()
-//                
-//                Text(agoraService.connectionState == .connected ? "Connected" : "Connecting...")
-//                    .foregroundColor(agoraService.connectionState == .connected ? .green : .orange)
-                Text(connectionStatusText)
-                    .foregroundColor(connectionStatusColor)
+                // Call controls
+                HStack(spacing: 40) {
+                    CallControlButton(
+                        icon: agoraService.isMuted ? "mic.slash.fill" : "mic.fill",
+                        text: agoraService.isMuted ? "Unmute" : "Mute",
+                        color: agoraService.isMuted ? .red : .white,
+                        backgroundColor: agoraService.isMuted ? .white.opacity(0.2) : .black.opacity(0.3),
+                        action: { agoraService.toggleMute() }
+                    )
+                    
+                    CallControlButton(
+                        icon: "phone.down.fill",
+                        text: "End",
+                        color: .white,
+                        backgroundColor: .red,
+                        action: { endCall() }
+                    )
+                    
+                    CallControlButton(
+                        icon: agoraService.isSpeakerEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
+                        text: agoraService.isSpeakerEnabled ? "Speaker" : "Earpiece",
+                        color: .white,
+                        backgroundColor: .black.opacity(0.3),
+                        action: { agoraService.toggleSpeaker() }
+                    )
+                }
+                .padding(.bottom, 50)
             }
+            .padding()
             
-            // Call controls
-            HStack(spacing: 40) {
-                CallControlButton(
-                    icon: agoraService.isMuted ? "mic.slash.fill" : "mic.fill",
-                    text: agoraService.isMuted ? "Unmute" : "Mute",
-                    color: agoraService.isMuted ? .red : .gray,
-                    action: { agoraService.toggleMute() }
-                )
-                
-                CallControlButton(
-                    icon: "phone.down.fill",
-                    text: "End Call",
-                    color: .red,
-                    action: { endCall() }
-                )
-                
-                CallControlButton(
-                    icon: agoraService.isSpeakerEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
-                    text: agoraService.isSpeakerEnabled ? "Speaker" : "Earpiece",
-                    color: agoraService.isSpeakerEnabled ? .green : .gray,
-                    action: { agoraService.toggleSpeaker() }
-                )
+            // Minimize button
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { isMinimized = true }) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(Circle().fill(Color.black.opacity(0.3)))
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.top, 10)
+                }
+                Spacer()
             }
-            
-            Spacer()
         }
-        .padding()
         .onAppear {
             startTimer()
             currentChannel = agoraService.currentChannel
@@ -82,6 +135,69 @@ struct CallView: View {
         }
         .onDisappear {
             cleanup()
+        }
+        .alert("Call Ended", isPresented: $showCallEndedAlert) {
+            Button("OK") { dismiss() }
+        } message: {
+            Text("The other party has ended the call.")
+        }
+    }
+    
+    private var minimizedCallView: some View {
+        HStack {
+            if let profile = otherUserProfile {
+                // Profile circle with initial
+                ZStack {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 40, height: 40)
+                    
+                    Text(profile.name.prefix(1).uppercased())
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                
+                VStack(alignment: .leading) {
+                    Text(profile.name)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    
+                    Text(timeString(from: callDuration))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 15) {
+                    Button(action: { endCall() }) {
+                        Image(systemName: "phone.down.fill")
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Circle().fill(Color.red))
+                    }
+                    
+                    Button(action: { isMinimized = false }) {
+                        Image(systemName: "chevron.up")
+                            .foregroundColor(.primary)
+                            .padding(8)
+                            .background(Circle().fill(Color.secondary.opacity(0.2)))
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(radius: 2)
+        )
+        .padding(.horizontal)
+        .onAppear {
+            // Keep timer running even when minimized
+            if timer == nil {
+                startTimer()
+            }
         }
     }
     

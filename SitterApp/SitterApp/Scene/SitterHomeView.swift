@@ -11,6 +11,7 @@ struct SitterHomeView: View {
     
     @EnvironmentObject var authService: FirebaseService
     @EnvironmentObject var agoraService: AgoraService
+    @State private var showCallView = false
     
     var body: some View {
         Group {
@@ -18,7 +19,7 @@ struct SitterHomeView: View {
                 if agoraService.isInCall {
                     CallView()
                 } else {
-                    SitterMainView()
+                    SitterMainView(showCallView: $showCallView)
                 }
             } else {
                 SitterLoginView()

@@ -11,6 +11,7 @@ struct ParentHomeView: View {
     
     @EnvironmentObject var authService: FirebaseService
     @EnvironmentObject var agoraService: AgoraService
+    @State private var showCallView = false
     
     var body: some View {
         Group {
@@ -18,7 +19,7 @@ struct ParentHomeView: View {
                 if agoraService.isInCall {
                     CallView()
                 } else {
-                    ParentMainView()
+                    ParentMainView(showCallView: $showCallView)
                 }
             } else {
                 LoginView()
