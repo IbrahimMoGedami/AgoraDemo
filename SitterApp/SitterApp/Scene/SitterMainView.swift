@@ -22,33 +22,35 @@ struct SitterMainView: View {
     @State private var callListener: ListenerRegistration?
     
     var body: some View {
-        List {
-            if isLoading {
-                ProgressView("Loading parents...")
-            } else if parents.isEmpty {
-                Text("No parents available")
-                    .foregroundColor(.gray)
-            } else {
-                ForEach(parents) { parent in
-                    ParentRow(parent: parent, showCallView: $showCallView)
+        NavigationView {
+            List {
+                if isLoading {
+                    ProgressView("Loading parents...")
+                } else if parents.isEmpty {
+                    Text("No parents available")
+                        .foregroundColor(.gray)
+                } else {
+                    ForEach(parents) { parent in
+                        ParentRow(parent: parent, showCallView: $showCallView)
+                    }
                 }
             }
-        }
-        .navigationTitle("Sitter Dashboard")
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Sign Out") { signOut() }
+            .navigationTitle("Sitter Dashboard")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Sign Out") { signOut() }
+                }
             }
-        }
-        .onAppear {
-            loadParents()
-            setupCallListener()
-        }
-        .onDisappear {
-            callListener?.remove()
-        }
-        .sheet(item: $incomingCall) { call in
-            IncomingCallView(call: call)
+            .onAppear {
+                loadParents()
+                setupCallListener()
+            }
+            .onDisappear {
+                callListener?.remove()
+            }
+            .sheet(item: $incomingCall) { call in
+                IncomingCallView(call: call)
+            }
         }
         .alert("Error", isPresented: .constant(!errorMessage.isEmpty)) {
             Button("OK") { errorMessage = "" }
@@ -84,7 +86,7 @@ struct SitterMainView: View {
             errorMessage = error.localizedDescription
         }
     }
-
+    
 }
 
 struct ParentRow: View {
