@@ -22,7 +22,6 @@ struct IncomingCallView: View {
     
     var body: some View {
         ZStack {
-            // Background with blur effect
             Color.black.opacity(0.8)
                 .ignoresSafeArea()
             
@@ -159,6 +158,7 @@ struct IncomingCallView: View {
             case .success:
                 RingtoneManager.shared.stopRingtone()
                 agoraService.startCall(call: call)
+                agoraService.answerCall()
                 dismiss()
             case .failure(let error):
                 print("Failed to accept call: \(error)")

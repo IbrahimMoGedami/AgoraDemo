@@ -162,7 +162,6 @@ class FirebaseService: ObservableObject {
             }
     }
     
-    // MARK: - User Management
     func getUserProfile(userId: String, completion: @escaping (Result<UserProfile, Error>) -> Void) {
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {

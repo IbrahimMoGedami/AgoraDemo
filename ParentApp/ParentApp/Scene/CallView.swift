@@ -67,6 +67,7 @@ struct CallView: View {
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
+
                     }
                     
                     Text(connectionStatusText)
@@ -74,7 +75,7 @@ struct CallView: View {
                         .foregroundColor(connectionStatusColor)
                         .padding(.top, 5)
                     
-                    if agoraService.callState == .inProgress {
+                    if agoraService.isCallAnswered {
                         Text(timeString(from: callDuration))
                             .font(.system(size: 24, weight: .medium, design: .monospaced))
                             .foregroundColor(.white)
@@ -90,7 +91,7 @@ struct CallView: View {
                 Spacer()
                 
                 // Call controls
-                if agoraService.callState == .inProgress {
+                if agoraService.isCallAnswered {
                     HStack(spacing: 40) {
                         CallControlButton(
                             icon: agoraService.isMuted ? "mic.slash.fill" : "mic.fill",
@@ -154,11 +155,20 @@ struct CallView: View {
             }
         }
         .onAppear {
-            if agoraService.callState == .inProgress {
-                startTimer()
-            }
             setupCallStatusListener()
             loadOtherUserProfile()
+            
+            // Only start timer if call is already answered
+            if agoraService.isCallAnswered {
+                startTimer()
+            }
+        }
+        .onChange(of: agoraService.isCallAnswered) { _, answered in
+            if answered {
+                startTimer()
+            } else {
+                stopTimer()
+            }
         }
         .onDisappear {
             cleanup()
@@ -189,7 +199,7 @@ struct CallView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                     
-                    if agoraService.callState == .inProgress {
+                    if agoraService.isCallAnswered {
                         Text(timeString(from: callDuration))
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -228,7 +238,7 @@ struct CallView: View {
         .padding(.horizontal)
         .onAppear {
             // Keep timer running even when minimized
-            if timer == nil && agoraService.callState == .inProgress {
+            if timer == nil && agoraService.isCallAnswered {
                 startTimer()
             }
         }
@@ -271,7 +281,8 @@ struct CallView: View {
                 showCallEndedAlert = true
                 endCall(updateFirebase: false)
             } else if status == "answered" {
-                // Call was answered, update UI if needed
+                // Call was answered, update UI
+                agoraService.answerCall()
             }
         }
     }
@@ -303,6 +314,7 @@ struct CallView: View {
     }
     
     private func startTimer() {
+        stopTimer() // Ensure no existing timer
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             callDuration += 1
         }

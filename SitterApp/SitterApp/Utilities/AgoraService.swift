@@ -14,6 +14,7 @@ class AgoraService: NSObject, ObservableObject {
     @Published var isInCall = false
     @Published var isMuted = false
     @Published var isSpeakerEnabled = true
+    @Published var isCallAnswered = false
     @Published var connectionState: AgoraConnectionState = .disconnected
     @Published var currentChannel: String?
     @Published var callState: CallState = .idle
@@ -60,7 +61,13 @@ class AgoraService: NSObject, ObservableObject {
     func startCall(call: Call) {
         self.currentCall = call
         self.callState = .initiating
+        self.isCallAnswered = false
         joinChannel(call.channelName)
+    }
+    
+    func answerCall() {
+        self.isCallAnswered = true
+        self.callState = .inProgress
     }
     
     func joinChannel(_ channel: String, token: String? = nil) {
@@ -219,7 +226,9 @@ extension AgoraService: AgoraRtcEngineDelegate {
             self.isInCall = true
             self.connectionState = .connected
             self.uid = uid
-            self.callState = .inProgress
+            if self.callState == .initiating {
+                self.callState = .inProgress
+            }
             print("Successfully joined channel: \(channel) with UID: \(uid)")
         }
     }

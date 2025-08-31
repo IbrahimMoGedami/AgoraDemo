@@ -158,6 +158,7 @@ struct IncomingCallView: View {
             case .success:
                 RingtoneManager.shared.stopRingtone()
                 agoraService.startCall(call: call)
+                agoraService.answerCall()
                 dismiss()
             case .failure(let error):
                 print("Failed to accept call: \(error)")
