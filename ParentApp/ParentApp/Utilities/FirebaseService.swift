@@ -78,7 +78,7 @@ class FirebaseService: ObservableObject {
             "callerId": callerId,
             "receiverId": receiverId,
             "channelName": channelName,
-            "status": "calling",
+            "status": "ringing",
             "createdAt": Timestamp(date: Date()),
             "updatedAt": Timestamp(date: Date()),
             "callType": "voice",
@@ -97,7 +97,7 @@ class FirebaseService: ObservableObject {
     func listenForIncomingCalls(userId: String, completion: @escaping (Call) -> Void) -> ListenerRegistration {
         return db.collection("calls")
             .whereField("receiverId", isEqualTo: userId)
-            .whereField("status", isEqualTo: "calling")
+            .whereField("status", isEqualTo: "ringing")
             .addSnapshotListener { snapshot, error in
                 guard let documents = snapshot?.documents else { return }
                 
@@ -154,7 +154,7 @@ class FirebaseService: ObservableObject {
                     return
                 }
                 
-                if status == "accepted" {
+                if status == "answered" {
                     completion(.success(true))
                 } else if status == "rejected" || status == "ended" || status == "timeout" {
                     completion(.success(false))
@@ -208,7 +208,7 @@ class FirebaseService: ObservableObject {
     func checkForCallTimeouts() {
         let now = Timestamp(date: Date())
         db.collection("calls")
-            .whereField("status", isEqualTo: "calling")
+            .whereField("status", isEqualTo: "ringing")
             .whereField("timeoutAt", isLessThan: now)
             .getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents else { return }
@@ -237,7 +237,7 @@ class FirebaseService: ObservableObject {
     // MARK: - Bidirectional Call Management
     func listenForAnyIncomingCalls(userId: String, completion: @escaping (Call) -> Void) -> ListenerRegistration {
         return db.collection("calls")
-            .whereField("status", isEqualTo: "calling")
+            .whereField("status", isEqualTo: "ringing")
             .whereFilter(Filter.orFilter([
                 Filter.whereField("receiverId", isEqualTo: userId),
                 Filter.whereField("callerId", isEqualTo: userId)
@@ -259,7 +259,7 @@ class FirebaseService: ObservableObject {
     
     func getActiveCall(userId: String, completion: @escaping (Call?) -> Void) -> ListenerRegistration {
         return db.collection("calls")
-            .whereField("status", in: ["calling", "accepted"])
+            .whereField("status", in: ["ringing", "answered"])
             .whereFilter(Filter.orFilter([
                 Filter.whereField("receiverId", isEqualTo: userId),
                 Filter.whereField("callerId", isEqualTo: userId)

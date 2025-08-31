@@ -16,7 +16,13 @@ class AgoraService: NSObject, ObservableObject {
     @Published var isSpeakerEnabled = true
     @Published var connectionState: AgoraConnectionState = .disconnected
     @Published var currentChannel: String?
-
+    @Published var callState: CallState = .idle
+    @Published var currentCall: Call?
+    
+    enum CallState {
+        case idle, initiating, ringing, inProgress, ending
+    }
+    
     private var agoraKit: AgoraRtcEngineKit?
     private var uid: UInt = 0
     
@@ -51,21 +57,22 @@ class AgoraService: NSObject, ObservableObject {
         }
     }
     
+    func startCall(call: Call) {
+        self.currentCall = call
+        self.callState = .initiating
+        joinChannel(call.channelName)
+    }
+    
     func joinChannel(_ channel: String, token: String? = nil) {
         guard let agoraKit else { return }
         
-        // Validate and sanitize channel name
-        let sanitizedChannel = sanitizeChannelName(channel)
-        print("Joining channel: \(sanitizedChannel)")
-        
         connectionState = .connecting
-        currentChannel = sanitizedChannel
+        currentChannel = channel
         
         let option = AgoraRtcChannelMediaOptions()
         option.clientRoleType = .broadcaster
         option.channelProfile = .communication
         
-        // Use joinChannel with joinSuccess callback for better error handling
         let result = agoraKit.joinChannel(
             byToken: Constants.token,
             channelId: Constants.channelName,
@@ -79,20 +86,6 @@ class AgoraService: NSObject, ObservableObject {
             print("Join channel failed with error code: \(result)")
             print("Error description: \(getAgoraErrorDescription(Int(result)))")
         }
-    }
-    
-    // Sanitize channel name to meet Agora requirements
-    private func sanitizeChannelName(_ channel: String) -> String {
-        // Remove any invalid characters
-        let allowedCharacterSet = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=[]{}|;:,.<>?/")
-        let sanitized = channel.unicodeScalars.filter { allowedCharacterSet.contains($0) }.map { String($0) }.joined()
-        
-        // Trim to max 64 characters if needed
-        if sanitized.count > 64 {
-            return String(sanitized.prefix(64))
-        }
-        
-        return sanitized.isEmpty ? "default_channel_\(Int(Date().timeIntervalSince1970))" : sanitized
     }
     
     // Helper function to get error description
@@ -187,6 +180,8 @@ class AgoraService: NSObject, ObservableObject {
             self.isInCall = false
             self.connectionState = .disconnected
             self.currentChannel = nil
+            self.callState = .idle
+            self.currentCall = nil
             print("Left channel successfully")
         }
     }
@@ -207,6 +202,10 @@ class AgoraService: NSObject, ObservableObject {
         print("Speaker enabled: \(isSpeakerEnabled)")
     }
     
+    func updateCallState(_ state: CallState) {
+        callState = state
+    }
+    
     deinit {
         leaveChannel()
         AgoraRtcEngineKit.destroy()
@@ -220,6 +219,7 @@ extension AgoraService: AgoraRtcEngineDelegate {
             self.isInCall = true
             self.connectionState = .connected
             self.uid = uid
+            self.callState = .inProgress
             print("Successfully joined channel: \(channel) with UID: \(uid)")
         }
     }
@@ -228,6 +228,7 @@ extension AgoraService: AgoraRtcEngineDelegate {
         DispatchQueue.main.async {
             self.isInCall = false
             self.connectionState = .disconnected
+            self.callState = .idle
             print("Left channel")
         }
     }

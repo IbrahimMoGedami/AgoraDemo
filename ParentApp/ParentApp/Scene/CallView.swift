@@ -15,9 +15,11 @@ struct CallView: View {
     @EnvironmentObject var agoraService: AgoraService
     @EnvironmentObject var authService: FirebaseService
     @Environment(\.dismiss) var dismiss
+    
+    let call: Call
+    
     @State private var callDuration = 0
     @State private var timer: Timer?
-    @State private var currentChannel: String?
     @State private var callStatusListener: ListenerRegistration?
     @State private var otherUserProfile: UserProfile?
     @State private var isLoadingProfile = true
@@ -72,41 +74,65 @@ struct CallView: View {
                         .foregroundColor(connectionStatusColor)
                         .padding(.top, 5)
                     
-                    Text(timeString(from: callDuration))
-                        .font(.system(size: 24, weight: .medium, design: .monospaced))
-                        .foregroundColor(.white)
-                        .padding(.top, 5)
+                    if agoraService.callState == .inProgress {
+                        Text(timeString(from: callDuration))
+                            .font(.system(size: 24, weight: .medium, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.top, 5)
+                    } else {
+                        Text(callStatusText)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.top, 5)
+                    }
                 }
                 
                 Spacer()
                 
                 // Call controls
-                HStack(spacing: 40) {
-                    CallControlButton(
-                        icon: agoraService.isMuted ? "mic.slash.fill" : "mic.fill",
-                        text: agoraService.isMuted ? "Unmute" : "Mute",
-                        color: agoraService.isMuted ? .red : .white,
-                        backgroundColor: agoraService.isMuted ? .white.opacity(0.2) : .black.opacity(0.3),
-                        action: { agoraService.toggleMute() }
-                    )
-                    
-                    CallControlButton(
-                        icon: "phone.down.fill",
-                        text: "End",
-                        color: .white,
-                        backgroundColor: .red,
-                        action: { endCall() }
-                    )
-                    
-                    CallControlButton(
-                        icon: agoraService.isSpeakerEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
-                        text: agoraService.isSpeakerEnabled ? "Speaker" : "Earpiece",
-                        color: .white,
-                        backgroundColor: .black.opacity(0.3),
-                        action: { agoraService.toggleSpeaker() }
-                    )
+                if agoraService.callState == .inProgress {
+                    HStack(spacing: 40) {
+                        CallControlButton(
+                            icon: agoraService.isMuted ? "mic.slash.fill" : "mic.fill",
+                            text: agoraService.isMuted ? "Unmute" : "Mute",
+                            color: agoraService.isMuted ? .red : .white,
+                            backgroundColor: agoraService.isMuted ? .white.opacity(0.2) : .black.opacity(0.3),
+                            action: { agoraService.toggleMute() }
+                        )
+                        
+                        CallControlButton(
+                            icon: "phone.down.fill",
+                            text: "End",
+                            color: .white,
+                            backgroundColor: .red,
+                            action: { endCall() }
+                        )
+                        
+                        CallControlButton(
+                            icon: agoraService.isSpeakerEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
+                            text: agoraService.isSpeakerEnabled ? "Speaker" : "Earpiece",
+                            color: .white,
+                            backgroundColor: .black.opacity(0.3),
+                            action: { agoraService.toggleSpeaker() }
+                        )
+                    }
+                    .padding(.bottom, 50)
+                } else if agoraService.callState == .ringing {
+                    // Show calling status
+                    VStack {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .padding()
+                        
+                        Button("Cancel Call") {
+                            endCall()
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(10)
+                    }
                 }
-                .padding(.bottom, 50)
             }
             .padding()
             
@@ -128,8 +154,9 @@ struct CallView: View {
             }
         }
         .onAppear {
-            startTimer()
-            currentChannel = agoraService.currentChannel
+            if agoraService.callState == .inProgress {
+                startTimer()
+            }
             setupCallStatusListener()
             loadOtherUserProfile()
         }
@@ -162,9 +189,15 @@ struct CallView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                     
-                    Text(timeString(from: callDuration))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if agoraService.callState == .inProgress {
+                        Text(timeString(from: callDuration))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text(callStatusText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
@@ -195,7 +228,7 @@ struct CallView: View {
         .padding(.horizontal)
         .onAppear {
             // Keep timer running even when minimized
-            if timer == nil {
+            if timer == nil && agoraService.callState == .inProgress {
                 startTimer()
             }
         }
@@ -208,7 +241,18 @@ struct CallView: View {
         case .reconnecting: return "Reconnecting..."
         case .disconnected: return "Disconnected"
         case .failed: return "Connection Failed"
-        @unknown default: break
+        @unknown default: return "Unknown"
+        }
+    }
+    
+    private var callStatusText: String {
+        switch agoraService.callState {
+        case .initiating: return "Calling..."
+        case .ringing: return "Ringing..."
+        case .inProgress: return "In Call"
+        case .ending: return "Ending Call..."
+        case .idle: return "Idle"
+        @unknown default: return "Unknown"
         }
     }
     
@@ -217,34 +261,29 @@ struct CallView: View {
         case .connected: return .green
         case .connecting, .reconnecting: return .orange
         case .disconnected, .failed: return .red
-        @unknown default: break
+        @unknown default: return .gray
         }
     }
     
     private func setupCallStatusListener() {
-        guard let channel = currentChannel else { return }
-        
-        callStatusListener = authService.listenForCallStatus(channelName: channel) { status in
-            if status == "ended" || status == "timeout" {
+        callStatusListener = authService.listenForCallStatus(channelName: call.channelName) { status in
+            if status == "ended" || status == "timeout" || status == "rejected" {
                 showCallEndedAlert = true
                 endCall(updateFirebase: false)
+            } else if status == "answered" {
+                // Call was answered, update UI if needed
             }
         }
     }
     
     private func loadOtherUserProfile() {
-        guard let currentUserId = authService.currentUser?.uid,
-              let channel = currentChannel else { return }
+        guard let currentUserId = authService.currentUser?.uid else { return }
         
-        authService.getCallInfo(channelName: channel) { result in
+        let otherUserId = call.callerId == currentUserId ? call.receiverId : call.callerId
+        authService.getUserProfile(userId: otherUserId) { result in
             isLoadingProfile = false
-            if case .success(let call) = result {
-                let otherUserId = call.callerId == currentUserId ? call.receiverId : call.callerId
-                authService.getUserProfile(userId: otherUserId) { result in
-                    if case .success(let profile) = result {
-                        otherUserProfile = profile
-                    }
-                }
+            if case .success(let profile) = result {
+                otherUserProfile = profile
             }
         }
     }
@@ -252,8 +291,8 @@ struct CallView: View {
     private func endCall(updateFirebase: Bool = true) {
         cleanup()
         
-        if updateFirebase, let channel = currentChannel {
-            authService.endCall(channelName: channel) { _ in }
+        if updateFirebase {
+            authService.endCall(channelName: call.channelName) { _ in }
         }
         
         agoraService.leaveChannel()

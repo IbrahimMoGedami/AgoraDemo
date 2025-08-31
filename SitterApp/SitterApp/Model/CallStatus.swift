@@ -8,28 +8,23 @@
 import Foundation
 import FirebaseCore
 
+import Foundation
+import FirebaseFirestore
+
 enum CallStatus: String, Codable {
-    
-    case initiating, ringing, inProgress, ended, missed, rejected
-    
+    case initiating, ringing, inProgress, answered, ended, missed, rejected, timeout
 }
 
 enum AgoraConnectionState {
-    
     case disconnected, connecting, connected, reconnecting, failed
-    
 }
 
 enum UserType: String, Codable {
-    
     case parent, sitter
-    
 }
 
 enum RingtoneType {
-    
     case incoming, outgoing, endCall
-    
 }
 
 struct Call: Identifiable {

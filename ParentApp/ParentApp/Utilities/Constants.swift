@@ -10,7 +10,7 @@ import Foundation
 class Constants {
     
     static let channelName = "testingChannel"
-    static let token = "007eJxTYGjZXapWPbntbBjXy89/P8yxee/L0iG9N/PfCaOTN6fUXAtRYDBOSzIzTTZOSTY1NDMxtki1SEkxNTYzMjMxNElLNkpLql69KaMhkJGB74YZMyMDBIL5DCWpxSWZeenOGYl5eak5DAwAhZcl6w=="
+    static let token = "007eJxTYDhtH+X6OyKFvaFMOOTBzm6J9ggvuW1CtrZ/T671vZTAc0SBwcLUyCA52TA1ydIkxcTI1DjRJMnMNNnUINHQ1NQoKcn4/IvNGQ2BjAy71aYwMzJAIIjPx1CSWlySmZfunJGYl5eaw8AAADjGIr4="
     static let appId = "3fb65c3dc516438e8dd53626414fc2fb"
     static let callTimeout = 30.0
     

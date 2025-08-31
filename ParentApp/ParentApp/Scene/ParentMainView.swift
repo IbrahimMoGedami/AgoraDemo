@@ -14,6 +14,7 @@ struct ParentMainView: View {
     @EnvironmentObject var authService: FirebaseService
     @EnvironmentObject var agoraService: AgoraService
     @Binding var showCallView: Bool
+    @Binding var activeCall: Call?
     
     @State private var sitters: [UserProfile] = []
     @State private var isLoading = false
@@ -28,7 +29,7 @@ struct ParentMainView: View {
                     ProgressView("Loading sitters...")
                 } else if !sitters.isEmpty {
                     ForEach(sitters) { sitter in
-                        SitterRow(sitter: sitter, showCallView: $showCallView)
+                        SitterRow(sitter: sitter, showCallView: $showCallView, activeCall: $activeCall)
                     }
                 } else {
                     Text("No sitters available")

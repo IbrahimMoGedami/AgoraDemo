@@ -15,6 +15,7 @@ struct SitterRow: View {
     @EnvironmentObject var agoraService: AgoraService
     let sitter: UserProfile
     @Binding var showCallView: Bool
+    @Binding var activeCall: Call?
     
     @State private var isCalling = false
     @State private var callStatusListener: ListenerRegistration?
@@ -67,6 +68,26 @@ struct SitterRow: View {
         isCalling = true
         RingtoneManager.shared.playRingtone(.outgoing)
         
+        // Create the call object
+        let callData: [String: Any] = [
+            "callerId": callerId,
+            "receiverId": sitter.id,
+            "channelName": channelName,
+            "status": "ringing",
+            "createdAt": Timestamp(date: Date()),
+            "callType": "voice",
+            "timeoutAt": Timestamp(date: Date().addingTimeInterval(Constants.callTimeout))
+        ]
+        
+        guard let call = Call(from: callData, id: channelName) else {
+            isCalling = false
+            return
+        }
+        
+        activeCall = call
+        agoraService.startCall(call: call)
+        showCallView = true
+        
         authService.createCall(from: callerId, to: sitter.id, channelName: channelName) { [self] result in
             switch result {
             case .success:
@@ -78,14 +99,17 @@ struct SitterRow: View {
                     switch acceptanceResult {
                     case .success(let accepted):
                         if accepted {
-                            print("Sitter accepted the call, joining channel...")
-                            agoraService.joinChannel(channelName)
-                            showCallView = true
+                            print("Sitter accepted the call")
+                            // Agora service already handles joining the channel
                         } else {
                             print("Call was rejected or ended")
+                            showCallView = false
+                            activeCall = nil
                         }
                     case .failure(let error):
                         print("Error waiting for call acceptance: \(error)")
+                        showCallView = false
+                        activeCall = nil
                     }
                     isCalling = false
                     callStatusListener?.remove()
@@ -95,6 +119,8 @@ struct SitterRow: View {
                 print("Failed to create call: \(error.localizedDescription)")
                 RingtoneManager.shared.stopRingtone()
                 isCalling = false
+                showCallView = false
+                activeCall = nil
             }
         }
     }

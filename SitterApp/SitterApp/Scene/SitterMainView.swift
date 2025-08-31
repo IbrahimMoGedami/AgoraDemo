@@ -14,6 +14,7 @@ struct SitterMainView: View {
     @EnvironmentObject var authService: FirebaseService
     @EnvironmentObject var agoraService: AgoraService
     @Binding var showCallView: Bool
+    @Binding var activeCall: Call?
     
     @State private var parents: [UserProfile] = []
     @State private var isLoading = false
@@ -31,7 +32,7 @@ struct SitterMainView: View {
                         .foregroundColor(.gray)
                 } else {
                     ForEach(parents) { parent in
-                        ParentRow(parent: parent, showCallView: $showCallView)
+                        ParentRow(parent: parent, showCallView: $showCallView, activeCall: $activeCall)
                     }
                 }
             }
@@ -51,11 +52,11 @@ struct SitterMainView: View {
             .sheet(item: $incomingCall) { call in
                 IncomingCallView(call: call)
             }
-        }
-        .alert("Error", isPresented: .constant(!errorMessage.isEmpty)) {
-            Button("OK") { errorMessage = "" }
-        } message: {
-            Text(errorMessage)
+            .alert("Error", isPresented: .constant(!errorMessage.isEmpty)) {
+                Button("OK") { errorMessage = "" }
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
     
@@ -86,7 +87,7 @@ struct SitterMainView: View {
             errorMessage = error.localizedDescription
         }
     }
-    
+
 }
 
 struct ParentRow: View {
@@ -95,13 +96,13 @@ struct ParentRow: View {
     @EnvironmentObject var agoraService: AgoraService
     let parent: UserProfile
     @Binding var showCallView: Bool
+    @Binding var activeCall: Call?
     
     @State private var isCalling = false
     @State private var callStatusListener: ListenerRegistration?
     
     var body: some View {
         HStack {
-            // Profile initial circle
             ZStack {
                 Circle()
                     .fill(Color.green.opacity(0.2))
@@ -146,6 +147,26 @@ struct ParentRow: View {
         isCalling = true
         RingtoneManager.shared.playRingtone(.outgoing)
         
+        // Create the call object
+        let callData: [String: Any] = [
+            "callerId": callerId,
+            "receiverId": parent.id,
+            "channelName": channelName,
+            "status": "ringing",
+            "createdAt": Timestamp(date: Date()),
+            "callType": "voice",
+            "timeoutAt": Timestamp(date: Date().addingTimeInterval(Constants.callTimeout))
+        ]
+        
+        guard let call = Call(from: callData, id: channelName) else {
+            isCalling = false
+            return
+        }
+        
+        activeCall = call
+        agoraService.startCall(call: call)
+        showCallView = true
+        
         authService.createCall(from: callerId, to: parent.id, channelName: channelName) { result in
             switch result {
             case .success:
@@ -163,9 +184,17 @@ struct ParentRow: View {
             
             switch result {
             case .success(let accepted):
-                if accepted { agoraService.joinChannel(channelName) }
+                if accepted {
+                    // Call was answered, Agora service already handles joining
+                } else {
+                    // Call was rejected or timed out
+                    showCallView = false
+                    activeCall = nil
+                }
             case .failure(let error):
                 print("Call error: \(error)")
+                showCallView = false
+                activeCall = nil
             }
         }
     }
@@ -173,6 +202,8 @@ struct ParentRow: View {
     private func handleCallError(_ error: Error) {
         RingtoneManager.shared.stopRingtone()
         isCalling = false
+        showCallView = false
+        activeCall = nil
         print("Call failed: \(error)")
     }
     

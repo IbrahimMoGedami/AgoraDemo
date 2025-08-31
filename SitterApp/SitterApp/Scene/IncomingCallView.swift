@@ -154,11 +154,11 @@ struct IncomingCallView: View {
     }
     
     private func acceptCall() {
-        authService.updateCallStatus(channelName: call.channelName, status: "accepted") { result in
+        authService.updateCallStatus(channelName: call.channelName, status: "answered") { result in
             switch result {
             case .success:
                 RingtoneManager.shared.stopRingtone()
-                agoraService.joinChannel(call.channelName)
+                agoraService.startCall(call: call)
                 dismiss()
             case .failure(let error):
                 print("Failed to accept call: \(error)")

@@ -8,32 +8,26 @@
 import Foundation
 import FirebaseCore
 
+import Foundation
+import FirebaseFirestore
+
 enum CallStatus: String, Codable {
-    
-    case initiating, ringing, inProgress, ended, missed, rejected
-    
+    case initiating, ringing, inProgress, answered, ended, missed, rejected, timeout
 }
 
 enum AgoraConnectionState {
-    
     case disconnected, connecting, connected, reconnecting, failed
-    
 }
 
 enum UserType: String, Codable {
-    
     case parent, sitter
-    
 }
 
 enum RingtoneType {
-    
     case incoming, outgoing, endCall
-    
 }
 
 struct Call: Identifiable {
-    
     let id: String
     let callerId: String
     let receiverId: String
@@ -62,11 +56,9 @@ struct Call: Identifiable {
         self.callType = callType
         self.timeoutAt = (data["timeoutAt"] as? Timestamp)?.dateValue()
     }
-    
 }
 
 struct UserProfile: Identifiable {
-    
     let id: String
     let email: String
     let name: String
@@ -88,5 +80,4 @@ struct UserProfile: Identifiable {
         self.userType = userType
         self.createdAt = timestamp.dateValue()
     }
-    
 }
