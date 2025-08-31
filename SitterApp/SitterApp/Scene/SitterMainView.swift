@@ -160,6 +160,7 @@ struct ParentRow: View {
         
         guard let call = Call(from: callData, id: channelName) else {
             isCalling = false
+            RingtoneManager.shared.stopRingtone()
             return
         }
         
@@ -179,15 +180,14 @@ struct ParentRow: View {
     
     private func setupCallMonitoring(channelName: String) {
         callStatusListener = authService.waitForCallAcceptance(channelName: channelName) { result in
-            RingtoneManager.shared.stopRingtone()
             isCalling = false
             
+            RingtoneManager.shared.stopRingtone()
+
             switch result {
             case .success(let accepted):
                 if accepted {
-                    // Call was answered, Agora service already handles joining
                 } else {
-                    // Call was rejected or timed out
                     showCallView = false
                     activeCall = nil
                 }

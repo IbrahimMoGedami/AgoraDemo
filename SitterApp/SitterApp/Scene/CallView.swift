@@ -282,6 +282,7 @@ struct CallView: View {
                 endCall(updateFirebase: false)
             } else if status == "answered" {
                 // Call was answered, update UI
+                RingtoneManager.shared.stopRingtone()
                 agoraService.answerCall()
             }
         }

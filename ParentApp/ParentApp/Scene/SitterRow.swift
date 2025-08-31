@@ -81,6 +81,7 @@ struct SitterRow: View {
         
         guard let call = Call(from: callData, id: channelName) else {
             isCalling = false
+            RingtoneManager.shared.stopRingtone()
             return
         }
         
@@ -94,12 +95,14 @@ struct SitterRow: View {
                 print("Call created, waiting for sitter to accept...")
                 
                 callStatusListener = authService.waitForCallAcceptance(channelName: channelName) { [self] acceptanceResult in
+                    isCalling = false
                     RingtoneManager.shared.stopRingtone()
-                    
+
                     switch acceptanceResult {
                     case .success(let accepted):
                         if accepted {
                             print("Sitter accepted the call")
+                            // Stop the ringtone when call is answered
                             // Agora service already handles joining the channel
                         } else {
                             print("Call was rejected or ended")
@@ -111,7 +114,6 @@ struct SitterRow: View {
                         showCallView = false
                         activeCall = nil
                     }
-                    isCalling = false
                     callStatusListener?.remove()
                 }
                 

@@ -68,6 +68,7 @@ class AgoraService: NSObject, ObservableObject {
     func answerCall() {
         self.isCallAnswered = true
         self.callState = .inProgress
+        RingtoneManager.shared.stopRingtone()
     }
     
     func joinChannel(_ channel: String, token: String? = nil) {
@@ -189,6 +190,7 @@ class AgoraService: NSObject, ObservableObject {
             self.currentChannel = nil
             self.callState = .idle
             self.currentCall = nil
+            RingtoneManager.shared.stopRingtone()
             print("Left channel successfully")
         }
     }
