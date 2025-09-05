@@ -115,7 +115,7 @@ class AgoraService: NSObject, ObservableObject {
         
         connectionState = .connecting
         currentChannel = channel
-        
+        callState = .ringing
         let option = AgoraRtcChannelMediaOptions()
         option.clientRoleType = .broadcaster
         option.channelProfile = .communication

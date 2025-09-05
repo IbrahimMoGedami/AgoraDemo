@@ -219,7 +219,7 @@ class FirebaseService: ObservableObject {
     
     func getAvailableSitters(completion: @escaping (Result<[UserProfile], Error>) -> Void) {
         db.collection("users")
-            .whereField("userType", isEqualTo: "sitter")
+            .whereField("userType", isEqualTo: UserType.sitter.rawValue)
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
@@ -289,7 +289,7 @@ class FirebaseService: ObservableObject {
     
     func getAvailableParents(completion: @escaping (Result<[UserProfile], Error>) -> Void) {
         db.collection("users")
-            .whereField("userType", isEqualTo: "parent")
+            .whereField("userType", isEqualTo: UserType.parent.rawValue)
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))

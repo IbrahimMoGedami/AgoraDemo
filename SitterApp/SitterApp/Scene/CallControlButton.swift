@@ -13,49 +13,39 @@ struct CallControlButton: View {
     let text: String
     let color: Color
     let backgroundColor: Color
+    let size: CGFloat
+    let iconSize: CGFloat
+    let textSize: CGFloat
     let action: () -> Void
     
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
-    
     var body: some View {
-        GeometryReader { geometry in
-            let isCompact = geometry.size.width < 400
-            let buttonSize = isCompact ? 50.0 : 60.0
-            let iconSize = isCompact ? 20.0 : 24.0
-            let fontSize: CGFloat = isCompact ? 10 : 12
-            
+        Button(action: action) {
             VStack(spacing: 4) {
-                Button(action: action) {
-                    Image(systemName: icon)
-                        .font(.system(size: iconSize, weight: .semibold))
-                        .foregroundColor(color)
-                        .frame(width: buttonSize, height: buttonSize)
-                        .background(backgroundColor)
-                        .clipShape(Circle())
-                        .contentShape(Circle())
-                }
-                .buttonStyle(ScaleButtonStyle())
+                Image(systemName: icon)
+                    .font(.system(size: iconSize, weight: .bold))
+                    .frame(width: size, height: size)
+                    .background(backgroundColor)
+                    .foregroundColor(color)
+                    .clipShape(Circle())
                 
                 Text(text)
-                    .font(.system(size: fontSize, weight: .medium))
+                    .font(.system(size: textSize, weight: .medium))
                     .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .frame(maxWidth: .infinity)
         }
-        .frame(height: 80) // Fixed height for consistent layout
+        .buttonStyle(ScaleButtonStyle())
     }
-    
 }
 
 struct ScaleButtonStyle: ButtonStyle {
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
     }
     
 }
@@ -70,5 +60,5 @@ struct PrimaryButtonStyle: ButtonStyle {
             .foregroundColor(.white)
             .cornerRadius(10)
     }
-
+    
 }
