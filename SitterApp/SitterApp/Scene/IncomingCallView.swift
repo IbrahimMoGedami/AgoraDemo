@@ -126,7 +126,7 @@ struct IncomingCallView: View {
     }
     
     private func autoRejectCall() {
-        authService.updateCallStatus(channelName: call.channelName, status: "timeout") { _ in }
+        authService.updateCallStatus(channelName: call.channelName, status: .timeout) { _ in }
         dismiss()
     }
     
@@ -138,7 +138,7 @@ struct IncomingCallView: View {
     
     private func setupCallStatusListener() {
         callStatusListener = authService.listenForCallStatus(channelName: call.channelName) { status in
-            if status == "ended" || status == "timeout" {
+            if status == .ended || status == .timeout {
                 dismiss()
             }
         }
@@ -157,7 +157,7 @@ struct IncomingCallView: View {
     }
     
     private func acceptCall() {
-        authService.updateCallStatus(channelName: call.channelName, status: "answered") { result in
+        authService.updateCallStatus(channelName: call.channelName, status: .answered) { result in
             switch result {
             case .success:
                 RingtoneManager.shared.stopRingtone()
@@ -171,7 +171,7 @@ struct IncomingCallView: View {
     }
     
     private func rejectCall() {
-        authService.updateCallStatus(channelName: call.channelName, status: "rejected") { result in
+        authService.updateCallStatus(channelName: call.channelName, status: .rejected) { result in
             switch result {
             case .success:
                 RingtoneManager.shared.stopRingtone()

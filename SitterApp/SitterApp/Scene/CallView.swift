@@ -95,7 +95,7 @@ struct CallView: View {
             return 20
         }
     }
-
+    
     var body: some View {
         callView
     }
@@ -455,11 +455,10 @@ struct CallView: View {
     
     private func setupCallStatusListener() {
         callStatusListener = authService.listenForCallStatus(channelName: call.channelName) { status in
-            if status == "ended" || status == "timeout" || status == "rejected" {
+            if status == .ended || status == .timeout || status == .rejected {
                 showCallEndedAlert = true
                 endCall(updateFirebase: false)
-            } else if status == "answered" {
-                // Call was answered, update UI
+            } else if status == .answered {
                 RingtoneManager.shared.stopRingtone()
                 agoraService.answerCall()
             }

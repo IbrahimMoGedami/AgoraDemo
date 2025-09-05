@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct SitterLoginView: View {
+    
     @EnvironmentObject var authService: FirebaseService
     @State private var email = ""
     @State private var password = ""
@@ -63,9 +64,11 @@ struct SitterLoginView: View {
             }
         }
     }
+    
 }
 
 struct SitterSignUpView: View {
+    
     @EnvironmentObject var authService: FirebaseService
     @Environment(\.dismiss) var dismiss
     @State private var email = ""
@@ -109,7 +112,7 @@ struct SitterSignUpView: View {
     }
     
     private func signUp() {
-        authService.signUp(email: email, password: password, userType: "sitter", name: name) { result in
+        authService.signUp(email: email, password: password, userType: .sitter, name: name) { result in
             switch result {
             case .success:
                 dismiss()
@@ -118,4 +121,5 @@ struct SitterSignUpView: View {
             }
         }
     }
+
 }

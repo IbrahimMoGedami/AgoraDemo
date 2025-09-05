@@ -110,7 +110,7 @@ struct SignUpView: View {
     }
     
     private func signUp() {
-        authService.signUp(email: email, password: password, userType: "parent", name: name) { result in
+        authService.signUp(email: email, password: password, userType: .parent, name: name) { result in
             switch result {
             case .success:
                 dismiss()
