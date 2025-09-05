@@ -32,7 +32,6 @@ class FirebaseService: ObservableObject {
     }
     
     // MARK: - Authentication
-    
     func signIn(email: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
         Auth.auth().signIn(withEmail: email, password: password) { result, error in
             if let error = error {
@@ -72,16 +71,16 @@ class FirebaseService: ObservableObject {
     }
     
     // MARK: - Call Management
-    func createCall(from callerId: String, to receiverId: String, channelName: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    func createCall(from callerId: String, to receiverId: String, channelName: String, callType: CallType, completion: @escaping (Result<Void, Error>) -> Void) {
         let timeoutAt = Date().addingTimeInterval(Constants.callTimeout)
         let callData: [String: Any] = [
             "callerId": callerId,
             "receiverId": receiverId,
             "channelName": channelName,
-            "status": "ringing",
+            "status": CallStatus.ringing.rawValue,
             "createdAt": Timestamp(date: Date()),
             "updatedAt": Timestamp(date: Date()),
-            "callType": "voice",
+            "callType": callType.rawValue,
             "timeoutAt": Timestamp(date: timeoutAt)
         ]
         

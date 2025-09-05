@@ -42,15 +42,23 @@ struct SitterRow: View {
             
             Spacer()
             
-            Button {
-                startCall()
+            Menu {
+                Button(action: {
+                    startCall(type: .voice)
+                }) {
+                    Label("Voice Call", systemImage: "phone.fill")
+                }
+                
+                Button(action: {
+                    startCall(type: .video)
+                }) {
+                    Label("Video Call", systemImage: "video.fill")
+                }
             } label: {
                 Image(systemName: "phone.fill")
-                    .foregroundColor(.green)
+                    .foregroundColor(.blue)
                     .font(.title2)
             }
-            .disabled(isCalling)
-            .buttonStyle(BorderlessButtonStyle())
         }
         .padding(.vertical, 8)
         .onDisappear {
@@ -58,7 +66,7 @@ struct SitterRow: View {
         }
     }
     
-    private func startCall() {
+    private func startCall(type: CallType) {
         guard let callerId = authService.currentUser?.uid else { return }
         
         let timestamp = Int(Date().timeIntervalSince1970)
@@ -75,7 +83,7 @@ struct SitterRow: View {
             "channelName": channelName,
             "status": "ringing",
             "createdAt": Timestamp(date: Date()),
-            "callType": "voice",
+            "callType": type.rawValue,
             "timeoutAt": Timestamp(date: Date().addingTimeInterval(Constants.callTimeout))
         ]
         
@@ -89,7 +97,7 @@ struct SitterRow: View {
         agoraService.startCall(call: call)
         showCallView = true
         
-        authService.createCall(from: callerId, to: sitter.id, channelName: channelName) { [self] result in
+        authService.createCall(from: callerId, to: sitter.id, channelName: channelName, callType: type) { [self] result in
             switch result {
             case .success:
                 print("Call created, waiting for sitter to accept...")

@@ -123,14 +123,23 @@ struct ParentRow: View {
             
             Spacer()
             
-            Button {
-                startCall()
+            Menu {
+                Button(action: {
+                    startCall(type: .voice)
+                }) {
+                    Label("Voice Call", systemImage: "phone.fill")
+                }
+                
+                Button(action: {
+                    startCall(type: .video)
+                }) {
+                    Label("Video Call", systemImage: "video.fill")
+                }
             } label: {
                 Image(systemName: "phone.fill")
                     .foregroundColor(.blue)
                     .font(.title2)
             }
-            .disabled(isCalling)
         }
         .padding(.vertical, 8)
         .onDisappear {
@@ -138,7 +147,7 @@ struct ParentRow: View {
         }
     }
     
-    private func startCall() {
+    private func startCall(type: CallType) {
         guard let callerId = authService.currentUser?.uid else { return }
         
         let timestamp = Int(Date().timeIntervalSince1970)
@@ -154,7 +163,7 @@ struct ParentRow: View {
             "channelName": channelName,
             "status": "ringing",
             "createdAt": Timestamp(date: Date()),
-            "callType": "voice",
+            "callType": type.rawValue,
             "timeoutAt": Timestamp(date: Date().addingTimeInterval(Constants.callTimeout))
         ]
         
@@ -168,7 +177,7 @@ struct ParentRow: View {
         agoraService.startCall(call: call)
         showCallView = true
         
-        authService.createCall(from: callerId, to: parent.id, channelName: channelName) { result in
+        authService.createCall(from: callerId, to: parent.id, channelName: channelName, callType: type) { result in
             switch result {
             case .success:
                 setupCallMonitoring(channelName: channelName)

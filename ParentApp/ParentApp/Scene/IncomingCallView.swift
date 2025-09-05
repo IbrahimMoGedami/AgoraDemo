@@ -48,9 +48,13 @@ struct IncomingCallView: View {
                                 .fontWeight(.semibold)
                                 .foregroundColor(.white)
                             
-                            Text("Incoming Call")
+                            Text("Incoming \(call.callType == .video ? "Video" : "Voice") Call")
                                 .font(.body)
                                 .foregroundColor(.white.opacity(0.8))
+                            
+                            Image(systemName: call.callType == .video ? "video.fill" : "phone.fill")
+                                .font(.title3)
+                                .foregroundColor(.white.opacity(0.6))
                         }
                     }
                     

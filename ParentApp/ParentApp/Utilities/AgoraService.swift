@@ -14,11 +14,13 @@ class AgoraService: NSObject, ObservableObject {
     @Published var isInCall = false
     @Published var isMuted = false
     @Published var isSpeakerEnabled = true
+    @Published var isVideoEnabled = true
     @Published var isCallAnswered = false
     @Published var connectionState: AgoraConnectionState = .disconnected
     @Published var currentChannel: String?
     @Published var callState: CallState = .idle
     @Published var currentCall: Call?
+    @Published var remoteVideoUid: UInt? = nil
     
     enum CallState {
         case idle, initiating, ringing, inProgress, ending
@@ -26,6 +28,8 @@ class AgoraService: NSObject, ObservableObject {
     
     private var agoraKit: AgoraRtcEngineKit?
     private var uid: UInt = 0
+    private var localVideoView: UIView?
+    private var remoteVideoView: UIView?
     
     override init() {
         super.init()
@@ -38,10 +42,19 @@ class AgoraService: NSObject, ObservableObject {
         config.appId = Constants.appId
         agoraKit = AgoraRtcEngineKit.sharedEngine(with: config, delegate: self)
         
-        // Configure audio settings
+        // Configure audio and video settings
         agoraKit?.setChannelProfile(.communication)
         agoraKit?.enableAudio()
+        agoraKit?.enableVideo()
         agoraKit?.setAudioProfile(.speechStandard)
+        agoraKit?.setVideoEncoderConfiguration(
+            AgoraVideoEncoderConfiguration(
+                size: AgoraVideoDimension640x360,
+                frameRate: .fps15,
+                bitrate: AgoraVideoBitrateStandard,
+                orientationMode: .adaptative, mirrorMode: .enabled
+            )
+        )
         
         // Set audio session configuration
         agoraKit?.setAudioSessionOperationRestriction(.all)
@@ -56,6 +69,32 @@ class AgoraService: NSObject, ObservableObject {
         } catch {
             print("Failed to setup audio session: \(error)")
         }
+    }
+    
+    func setupLocalVideo(container: UIView) {
+        guard let agoraKit = agoraKit else { return }
+        
+        let videoCanvas = AgoraRtcVideoCanvas()
+        videoCanvas.uid = 0
+        videoCanvas.view = container
+        videoCanvas.renderMode = .hidden
+        agoraKit.setupLocalVideo(videoCanvas)
+        localVideoView = container
+        
+        // Start local preview
+        agoraKit.startPreview()
+    }
+    
+    func setupRemoteVideo(container: UIView, uid: UInt) {
+        guard let agoraKit = agoraKit else { return }
+        
+        let videoCanvas = AgoraRtcVideoCanvas()
+        videoCanvas.uid = uid
+        videoCanvas.view = container
+        videoCanvas.renderMode = .hidden
+        agoraKit.setupRemoteVideo(videoCanvas)
+        remoteVideoView = container
+        remoteVideoUid = uid
     }
     
     func startCall(call: Call) {
@@ -80,6 +119,8 @@ class AgoraService: NSObject, ObservableObject {
         let option = AgoraRtcChannelMediaOptions()
         option.clientRoleType = .broadcaster
         option.channelProfile = .communication
+        option.publishCameraTrack = currentCall?.callType == .video
+        option.publishMicrophoneTrack = true
         
         let result = agoraKit.joinChannel(
             byToken: Constants.token,
@@ -182,7 +223,7 @@ class AgoraService: NSObject, ObservableObject {
     
     func leaveChannel() {
         guard let agoraKit = agoraKit else { return }
-        
+        agoraKit.stopPreview()
         agoraKit.leaveChannel { [weak self] stats in
             guard let self else { return }
             self.isInCall = false
@@ -190,6 +231,7 @@ class AgoraService: NSObject, ObservableObject {
             self.currentChannel = nil
             self.callState = .idle
             self.currentCall = nil
+            self.remoteVideoUid = nil
             RingtoneManager.shared.stopRingtone()
             print("Left channel successfully")
         }
@@ -211,6 +253,19 @@ class AgoraService: NSObject, ObservableObject {
         print("Speaker enabled: \(isSpeakerEnabled)")
     }
     
+    func toggleVideo() {
+        guard let agoraKit = agoraKit else { return }
+        
+        isVideoEnabled.toggle()
+        agoraKit.muteLocalVideoStream(!isVideoEnabled)
+        print("Video enabled: \(isVideoEnabled)")
+    }
+    
+    func switchCamera() {
+        guard let agoraKit = agoraKit else { return }
+        agoraKit.switchCamera()
+    }
+    
     func updateCallState(_ state: CallState) {
         callState = state
     }
@@ -223,6 +278,7 @@ class AgoraService: NSObject, ObservableObject {
 }
 
 extension AgoraService: AgoraRtcEngineDelegate {
+    
     func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinChannel channel: String, withUid uid: UInt, elapsed: Int) {
         DispatchQueue.main.async {
             self.isInCall = true
@@ -240,7 +296,23 @@ extension AgoraService: AgoraRtcEngineDelegate {
             self.isInCall = false
             self.connectionState = .disconnected
             self.callState = .idle
+            self.remoteVideoUid = nil
             print("Left channel")
+        }
+    }
+    
+    func rtcEngine(_ engine: AgoraRtcEngineKit, firstRemoteVideoDecodedOfUid uid: UInt, size: CGSize, elapsed: Int) {
+        DispatchQueue.main.async {
+            self.remoteVideoUid = uid
+            print("First remote video decoded for UID: \(uid)")
+        }
+    }
+    
+    func rtcEngine(_ engine: AgoraRtcEngineKit, didOfflineOfUid uid: UInt, reason: AgoraUserOfflineReason) {
+        DispatchQueue.main.async {
+            if self.remoteVideoUid == uid {
+                self.remoteVideoUid = nil
+            }
         }
     }
     

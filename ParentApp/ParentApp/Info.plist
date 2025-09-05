@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>This app needs microphone access to make voice calls</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>voip</string>
@@ -23,5 +21,11 @@
     <false/>
     <key>FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED</key>
     <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>This app needs access to camera to make video calls</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app needs access to microphone to make audio and video calls</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app needs microphone access to make voice calls</string>
 </dict>
 </plist>

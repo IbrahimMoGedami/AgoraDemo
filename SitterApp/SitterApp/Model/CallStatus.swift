@@ -7,9 +7,11 @@
 
 import Foundation
 import FirebaseCore
-
-import Foundation
 import FirebaseFirestore
+
+enum CallType: String, Codable {
+    case voice, video
+}
 
 enum CallStatus: String, Codable {
     case initiating, ringing, inProgress, answered, ended, missed, rejected, timeout
@@ -34,7 +36,7 @@ struct Call: Identifiable {
     let channelName: String
     let status: String
     let createdAt: Date
-    let callType: String
+    let callType: CallType
     let timeoutAt: Date?
     
     init?(from data: [String: Any], id: String) {
@@ -43,7 +45,8 @@ struct Call: Identifiable {
               let channelName = data["channelName"] as? String,
               let status = data["status"] as? String,
               let timestamp = data["createdAt"] as? Timestamp,
-              let callType = data["callType"] as? String else {
+              let callTypeString = data["callType"] as? String,
+              let callType = CallType(rawValue: callTypeString) else {
             return nil
         }
         
