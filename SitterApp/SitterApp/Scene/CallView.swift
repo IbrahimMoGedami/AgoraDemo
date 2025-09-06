@@ -23,10 +23,13 @@ struct CallView: View {
     @State private var callDuration = 0
     @State private var timer: Timer?
     @State private var callStatusListener: ListenerRegistration?
+    @State private var callTypeListener: ListenerRegistration?
     @State private var otherUserProfile: UserProfile?
     @State private var isLoadingProfile = true
     @State private var showCallEndedAlert = false
-    @State private var isVideoFullscreen = false
+    @State private var showUpgradeAlert = false
+    @State private var currentCallType: CallType
+    @State private var isUpgrading = false
     
     // Video views
     @State private var localVideoView = UIView()
@@ -48,25 +51,45 @@ struct CallView: View {
     // Button sizing
     private var buttonSize: CGFloat {
         if isVeryCompact {
-            return 50
+            return 40
         } else if isCompactWidth {
-            return 60
+            return 45
         } else {
-            return 70
+            return 50
         }
     }
     
     private var buttonIconSize: CGFloat {
         if isVeryCompact {
-            return 20
+            return 15
         } else if isCompactWidth {
-            return 24
+            return 20
         } else {
-            return 28
+            return 25
         }
     }
     
     private var buttonTextSize: CGFloat {
+        if isVeryCompact {
+            return 8
+        } else if isCompactWidth {
+            return 10
+        } else {
+            return 12
+        }
+    }
+    
+    private var buttonSpacing: CGFloat {
+        if isVeryCompact {
+            return 8
+        } else if isCompactWidth {
+            return 10
+        } else {
+            return 12
+        }
+    }
+    
+    private var controlsPadding: CGFloat {
         if isVeryCompact {
             return 10
         } else if isCompactWidth {
@@ -76,24 +99,9 @@ struct CallView: View {
         }
     }
     
-    private var buttonSpacing: CGFloat {
-        if isVeryCompact {
-            return 16
-        } else if isCompactWidth {
-            return 20
-        } else {
-            return 30
-        }
-    }
-    
-    private var controlsPadding: CGFloat {
-        if isVeryCompact {
-            return 12
-        } else if isCompactWidth {
-            return 16
-        } else {
-            return 20
-        }
+    init(call: Call) {
+        self.call = call
+        self._currentCallType = State(initialValue: call.callType)
     }
     
     var body: some View {
@@ -111,125 +119,7 @@ struct CallView: View {
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Video container
-                if call.callType == .video {
-                    ZStack {
-                        // Remote video
-                        VideoView(uiView: remoteVideoView)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .opacity(agoraService.remoteVideoUid != nil ? 1 : 0)
-                        
-                        // Local video preview (pip)
-                        if agoraService.isVideoEnabled {
-                            VideoView(uiView: localVideoView)
-                                .frame(
-                                    width: isVeryCompact ? 80 : 120,
-                                    height: isVeryCompact ? 100 : 160
-                                )
-                                .cornerRadius(8)
-                                .padding(isVeryCompact ? 8 : 12)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                        }
-                        
-                        // Caller info overlay when no video
-                        if agoraService.remoteVideoUid == nil {
-                            VStack(spacing: isVeryCompact ? 12 : 20) {
-                                if isLoadingProfile {
-                                    ProgressView("Loading...")
-                                        .tint(.white)
-                                        .scaleEffect(isVeryCompact ? 0.8 : 1.0)
-                                } else if let profile = otherUserProfile {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white.opacity(0.2))
-                                            .frame(
-                                                width: isVeryCompact ? 80 : 120,
-                                                height: isVeryCompact ? 80 : 120
-                                            )
-                                        
-                                        Text(profile.name.prefix(1).uppercased())
-                                            .font(.system(
-                                                size: isVeryCompact ? 30 : 50,
-                                                weight: .bold
-                                            ))
-                                            .foregroundColor(.white)
-                                    }
-                                    
-                                    Text(profile.name)
-                                        .font(.system(
-                                            size: isVeryCompact ? 16 : 20,
-                                            weight: .bold
-                                        ))
-                                        .foregroundColor(.white)
-                                        .multilineTextAlignment(.center)
-                                        .padding(.horizontal, 8)
-                                }
-                                
-                                Text(connectionStatusText)
-                                    .font(.system(size: isVeryCompact ? 12 : 14))
-                                    .foregroundColor(connectionStatusColor)
-                            }
-                            .padding()
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    // Audio call UI
-                    VStack(spacing: isVeryCompact ? 20 : 30) {
-                        if isLoadingProfile {
-                            ProgressView("Loading...")
-                                .tint(.white)
-                                .scaleEffect(isVeryCompact ? 0.8 : 1.0)
-                        } else if let profile = otherUserProfile {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white.opacity(0.2))
-                                    .frame(
-                                        width: isVeryCompact ? 80 : 120,
-                                        height: isVeryCompact ? 80 : 120
-                                    )
-                                
-                                Text(profile.name.prefix(1).uppercased())
-                                    .font(.system(
-                                        size: isVeryCompact ? 30 : 50,
-                                        weight: .bold
-                                    ))
-                                    .foregroundColor(.white)
-                            }
-                            
-                            Text(profile.name)
-                                .font(.system(
-                                    size: isVeryCompact ? 16 : 20,
-                                    weight: .bold
-                                ))
-                                .foregroundColor(.white)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 8)
-                        }
-                        
-                        Text(connectionStatusText)
-                            .font(.system(size: isVeryCompact ? 12 : 14))
-                            .foregroundColor(connectionStatusColor)
-                        
-                        if agoraService.isCallAnswered {
-                            Text(timeString(from: callDuration))
-                                .font(.system(
-                                    size: isVeryCompact ? 18 : 24,
-                                    weight: .medium,
-                                    design: .monospaced
-                                ))
-                                .foregroundColor(.white)
-                        } else {
-                            Text(callStatusText)
-                                .font(.system(
-                                    size: isVeryCompact ? 14 : 18,
-                                    weight: .medium
-                                ))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .padding()
-                }
+                callContent
                 
                 Spacer()
                 
@@ -241,10 +131,26 @@ struct CallView: View {
                     callingStatusView
                 }
             }
+            
+            if isUpgrading {
+                Color.black.opacity(0.7)
+                    .ignoresSafeArea()
+                
+                VStack {
+                    ProgressView("Upgrading to video call...")
+                        .tint(.white)
+                        .scaleEffect(1.5)
+                    
+                    Text("Please wait")
+                        .foregroundColor(.white)
+                        .padding(.top, 10)
+                }
+            }
         }
         .onAppear {
             setupVideoViews()
             setupCallStatusListener()
+            setupCallTypeListener()
             loadOtherUserProfile()
             
             if agoraService.isCallAnswered {
@@ -266,153 +172,258 @@ struct CallView: View {
         } message: {
             Text("The other party has ended the call.")
         }
+        .alert("Upgrade to Video Call", isPresented: $showUpgradeAlert) {
+            Button("Upgrade") {
+                initiateCallUpgrade()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Do you want to upgrade this audio call to a video call?")
+        }
+    }
+    
+    private var callContent: some View {
+        Group {
+            if currentCallType == .video {
+                // Video call UI
+                ZStack {
+                    VideoView(uiView: remoteVideoView)
+                        .frame(maxWidth: .infinity, maxHeight: isVeryCompact ? .infinity : .infinity)
+                        .opacity(agoraService.remoteVideoUid != nil ? 1 : 0)
+                    
+                    if agoraService.isVideoEnabled {
+                        VideoView(uiView: localVideoView)
+                            .frame(
+                                width: isVeryCompact ? 80 : 120,
+                                height: isVeryCompact ? 100 : 160
+                            )
+                            .cornerRadius(8)
+                            .padding(isVeryCompact ? 8 : 12)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    }
+                    
+                    if agoraService.remoteVideoUid == nil {
+                        audioFallbackUI
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: isVeryCompact ? .infinity : .infinity)
+            } else {
+                // Audio call UI
+                VStack(spacing: isVeryCompact ? 20 : 30) {
+                    if isLoadingProfile {
+                        ProgressView("Loading...")
+                            .tint(.white)
+                            .scaleEffect(isVeryCompact ? 0.8 : 1.0)
+                    } else if let profile = otherUserProfile {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.2))
+                                .frame(
+                                    width: isVeryCompact ? 80 : 120,
+                                    height: isVeryCompact ? 80 : 120
+                                )
+                            
+                            Text(profile.name.prefix(1).uppercased())
+                                .font(.system(
+                                    size: isVeryCompact ? 30 : 50,
+                                    weight: .bold
+                                ))
+                                .foregroundColor(.white)
+                        }
+                        
+                        Text(profile.name)
+                            .font(.system(
+                                size: isVeryCompact ? 16 : 20,
+                                weight: .bold
+                            ))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
+                    }
+                    
+                    Text(connectionStatusText)
+                        .font(.system(size: isVeryCompact ? 12 : 14))
+                        .foregroundColor(connectionStatusColor)
+                    
+                    if agoraService.isCallAnswered {
+                        Text(timeString(from: callDuration))
+                            .font(.system(
+                                size: isVeryCompact ? 18 : 24,
+                                weight: .medium,
+                                design: .monospaced
+                            ))
+                            .foregroundColor(.white)
+                    } else {
+                        Text(callStatusText)
+                            .font(.system(
+                                size: isVeryCompact ? 14 : 18,
+                                weight: .medium
+                            ))
+                            .foregroundColor(.white)
+                    }
+                }
+                .padding()
+            }
+        }
+    }
+    
+    private var audioFallbackUI: some View {
+        VStack(spacing: isVeryCompact ? 12 : 20) {
+            if isLoadingProfile {
+                ProgressView("Loading...")
+                    .tint(.white)
+                    .scaleEffect(isVeryCompact ? 0.8 : 1.0)
+            } else if let profile = otherUserProfile {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(
+                            width: isVeryCompact ? 80 : 120,
+                            height: isVeryCompact ? 80 : 120
+                        )
+                    
+                    Text(profile.name.prefix(1).uppercased())
+                        .font(.system(
+                            size: isVeryCompact ? 30 : 50,
+                            weight: .bold
+                        ))
+                        .foregroundColor(.white)
+                }
+                
+                Text(profile.name)
+                    .font(.system(
+                        size: isVeryCompact ? 16 : 20,
+                        weight: .bold
+                    ))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 8)
+            }
+            
+            Text(connectionStatusText)
+                .font(.system(size: isVeryCompact ? 12 : 14))
+                .foregroundColor(connectionStatusColor)
+        }
+        .padding()
     }
     
     private var callControls: some View {
-        Group {
-            if call.callType == .video {
-                // Video call controls with more buttons
-                VStack(spacing: 12) {
-                    // Primary controls row
-                    HStack(spacing: buttonSpacing) {
-                        // Mute button
-                        CallControlButton(
-                            icon: agoraService.isMuted ? "mic.slash.fill" : "mic.fill",
-                            text: agoraService.isMuted ? "Unmute" : "Mute",
-                            color: agoraService.isMuted ? .red : .white,
-                            backgroundColor: agoraService.isMuted ? .white.opacity(0.2) : .black.opacity(0.3),
-                            size: buttonSize,
-                            iconSize: buttonIconSize,
-                            textSize: buttonTextSize,
-                            action: { agoraService.toggleMute() }
-                        )
-                        
-                        // End call button
-                        CallControlButton(
-                            icon: "phone.down.fill",
-                            text: "End",
-                            color: .white,
-                            backgroundColor: .red,
-                            size: buttonSize,
-                            iconSize: buttonIconSize,
-                            textSize: buttonTextSize,
-                            action: { endCall() }
-                        )
-                        
-                        // Speaker button
-                        CallControlButton(
-                            icon: agoraService.isSpeakerEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
-                            text: agoraService.isSpeakerEnabled ? "Speaker" : "Earpiece",
-                            color: .white,
-                            backgroundColor: .black.opacity(0.3),
-                            size: buttonSize,
-                            iconSize: buttonIconSize,
-                            textSize: buttonTextSize,
-                            action: { agoraService.toggleSpeaker() }
-                        )
-                    }
-                    
-                    // Secondary controls row
-                    HStack(spacing: buttonSpacing) {
-                        // Video toggle button
-                        CallControlButton(
-                            icon: agoraService.isVideoEnabled ? "video.fill" : "video.slash.fill",
-                            text: agoraService.isVideoEnabled ? "Video On" : "Video Off",
-                            color: agoraService.isVideoEnabled ? .white : .red,
-                            backgroundColor: .black.opacity(0.3),
-                            size: buttonSize,
-                            iconSize: buttonIconSize,
-                            textSize: buttonTextSize,
-                            action: { agoraService.toggleVideo() }
-                        )
-                        
-                        // Camera switch button
-                        CallControlButton(
-                            icon: "camera.rotate.fill",
-                            text: "Switch",
-                            color: .white,
-                            backgroundColor: .black.opacity(0.3),
-                            size: buttonSize,
-                            iconSize: buttonIconSize,
-                            textSize: buttonTextSize,
-                            action: { agoraService.switchCamera() }
-                        )
-                        
-                        // Placeholder for layout balance
-                        CallControlButton(
-                            icon: "circle.fill",
-                            text: "More",
-                            color: .clear,
-                            backgroundColor: .clear,
-                            size: buttonSize,
-                            iconSize: buttonIconSize,
-                            textSize: buttonTextSize,
-                            action: {}
-                        )
-                        .hidden()
-                    }
-                }
-            } else {
-                // Audio call controls - simpler layout
-                HStack(spacing: buttonSpacing) {
-                    // Mute button
+        HStack {
+            Spacer()
+            HStack(spacing: buttonSpacing * 1.5) {
+                // Mute button
+                CallControlButton(
+                    icon: agoraService.isMuted ? "mic.slash.fill" : "mic.fill",
+                    text: agoraService.isMuted ? "Unmute" : "Mute",
+                    isActive: !agoraService.isMuted,
+                    backgroundColor: agoraService.isMuted ? .red : .white,
+                    foregroundColor: agoraService.isMuted ? .white.opacity(0.2) : .black.opacity(0.3),
+                    size: buttonSize,
+                    iconSize: buttonIconSize,
+                    textSize: buttonTextSize,
+                    action: { agoraService.toggleMute() }
+                )
+                
+                // End call button (centered and emphasized)
+                CallControlButton(
+                    icon: "phone.down.fill",
+                    text: "End",
+                    isActive: true,
+                    backgroundColor: .red,
+                    foregroundColor: .white,
+                    size: buttonSize * 1.2,
+                    iconSize: buttonIconSize * 1.2,
+                    textSize: buttonTextSize,
+                    action: { endCall() }
+                )
+                
+                // Speaker button
+                CallControlButton(
+                    icon: agoraService.isSpeakerEnabled ? "speaker.wave.3.fill" : "speaker.slash.fill",
+                    text: "Speaker",
+                    isActive: agoraService.isSpeakerEnabled,
+                    backgroundColor: .black.opacity(0.3),
+                    foregroundColor: .white,
+                    size: buttonSize,
+                    iconSize: buttonIconSize,
+                    textSize: buttonTextSize,
+                    action: { agoraService.toggleSpeaker() }
+                )
+                
+                if currentCallType == .video {
+                    // Video toggle
                     CallControlButton(
-                        icon: agoraService.isMuted ? "mic.slash.fill" : "mic.fill",
-                        text: agoraService.isMuted ? "Unmute" : "Mute",
-                        color: agoraService.isMuted ? .red : .white,
-                        backgroundColor: agoraService.isMuted ? .white.opacity(0.2) : .black.opacity(0.3),
-                        size: buttonSize,
-                        iconSize: buttonIconSize,
-                        textSize: buttonTextSize,
-                        action: { agoraService.toggleMute() }
-                    )
-                    
-                    // End call button
-                    CallControlButton(
-                        icon: "phone.down.fill",
-                        text: "End",
-                        color: .white,
-                        backgroundColor: .red,
-                        size: buttonSize,
-                        iconSize: buttonIconSize,
-                        textSize: buttonTextSize,
-                        action: { endCall() }
-                    )
-                    
-                    // Speaker button
-                    CallControlButton(
-                        icon: agoraService.isSpeakerEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
-                        text: agoraService.isSpeakerEnabled ? "Speaker" : "Earpiece",
-                        color: .white,
+                        icon: agoraService.isVideoEnabled ? "video.fill" : "video.slash.fill",
+                        text: "Video",
+                        isActive: agoraService.isVideoEnabled,
                         backgroundColor: .black.opacity(0.3),
+                        foregroundColor: .white,
                         size: buttonSize,
                         iconSize: buttonIconSize,
                         textSize: buttonTextSize,
-                        action: { agoraService.toggleSpeaker() }
+                        action: { agoraService.toggleVideo() }
+                    )
+                    
+                    // Camera switch
+                    CallControlButton(
+                        icon: "camera.rotate",
+                        text: "Flip",
+                        isActive: true,
+                        backgroundColor: .blue.opacity(0.8),
+                        foregroundColor: .white,
+                        size: buttonSize,
+                        iconSize: buttonIconSize,
+                        textSize: buttonTextSize,
+                        action: { agoraService.switchCamera() }
+                    )
+                    
+                    // Downgrade to audio
+                    CallControlButton(
+                        icon: "phone.fill",
+                        text: "Audio",
+                        isActive: true,
+                        backgroundColor: .blue.opacity(0.8),
+                        foregroundColor: .white,
+                        size: buttonSize,
+                        iconSize: buttonIconSize,
+                        textSize: buttonTextSize,
+                        action: { downgradeToAudio() }
+                    )
+                } else {
+                    // Upgrade to video
+                    CallControlButton(
+                        icon: "video.fill",
+                        text: "Video",
+                        isActive: true,
+                        backgroundColor: .blue,
+                        foregroundColor: .white,
+                        size: buttonSize,
+                        iconSize: buttonIconSize,
+                        textSize: buttonTextSize,
+                        action: { showUpgradeAlert = true }
                     )
                 }
             }
+            Spacer()
         }
-        .padding(.horizontal, controlsPadding)
     }
     
     private var callingStatusView: some View {
-        VStack {
-            CallControlButton(
-                icon: "phone.down.fill",
-                text: "End",
-                color: .white,
-                backgroundColor: .red,
-                size: buttonSize,
-                iconSize: buttonIconSize,
-                textSize: buttonTextSize,
-                action: { endCall() }
-            )
-        }
+        CallControlButton(
+            icon: "phone.down.fill",
+            text: "End Call",
+            isActive: true,
+            backgroundColor: .red,
+            foregroundColor: .white,
+            size: buttonSize * 1.1,
+            iconSize: buttonIconSize * 1.1,
+            textSize: buttonTextSize,
+            action: { endCall() }
+        )
     }
     
     private func setupVideoViews() {
-        if call.callType == .video {
+        if currentCallType == .video {
             agoraService.setupLocalVideo(container: localVideoView)
             
             // Setup remote video when available
@@ -440,6 +451,7 @@ struct CallView: View {
         case .inProgress: return "In Call"
         case .ending: return "Ending Call..."
         case .idle: return "Idle"
+        case .upgrading: return "Upgrading To Video Call"
         @unknown default: return "Unknown"
         }
     }
@@ -461,6 +473,77 @@ struct CallView: View {
             } else if status == .answered {
                 RingtoneManager.shared.stopRingtone()
                 agoraService.answerCall()
+            }
+        }
+    }
+    
+    private func setupCallTypeListener() {
+        callTypeListener = authService.listenForCallTypeChanges(channelName: call.channelName) { callType in
+            if callType != self.currentCallType {
+                self.handleCallTypeChange(newCallType: callType)
+            }
+        }
+    }
+    
+    private func handleCallTypeChange(newCallType: CallType) {
+        if newCallType == .video && currentCallType == .voice {
+            // Received upgrade request
+            acceptCallUpgrade()
+        } else if newCallType == .voice && currentCallType == .video {
+            // Received downgrade request
+            acceptCallDowngrade()
+        }
+    }
+    
+    private func initiateCallUpgrade() {
+        isUpgrading = true
+        
+        // Update Firebase first
+        authService.updateCallType(channelName: call.channelName, callType: .video) { result in
+            switch result {
+            case .success:
+                // Then upgrade Agora connection
+                self.agoraService.upgradeToVideoCall()
+                self.currentCallType = .video
+                self.setupVideoViews()
+                self.isUpgrading = false
+                
+            case .failure(let error):
+                print("Failed to upgrade call: \(error)")
+                self.isUpgrading = false
+            }
+        }
+    }
+    
+    private func acceptCallUpgrade() {
+        isUpgrading = true
+        
+        // Upgrade Agora connection
+        agoraService.upgradeToVideoCall()
+        currentCallType = .video
+        setupVideoViews()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.isUpgrading = false
+        }
+    }
+    
+    private func acceptCallDowngrade() {
+        agoraService.downgradeToAudioCall()
+        currentCallType = .voice
+    }
+    
+    private func downgradeToAudio() {
+        // Update Firebase first
+        authService.updateCallType(channelName: call.channelName, callType: .voice) { result in
+            switch result {
+            case .success:
+                // Then downgrade Agora connection
+                self.agoraService.downgradeToAudioCall()
+                self.currentCallType = .voice
+                
+            case .failure(let error):
+                print("Failed to downgrade call: \(error)")
             }
         }
     }
@@ -501,6 +584,7 @@ struct CallView: View {
     private func cleanup() {
         stopTimer()
         callStatusListener?.remove()
+        callTypeListener?.remove()
         RingtoneManager.shared.stopRingtone()
     }
     

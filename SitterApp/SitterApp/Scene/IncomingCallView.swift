@@ -18,7 +18,14 @@ struct IncomingCallView: View {
     @State private var callerProfile: UserProfile?
     @State private var isLoading = true
     @State private var callStatusListener: ListenerRegistration?
+    @State private var callTypeListener: ListenerRegistration?
     @State private var timeoutTimer: Timer?
+    @State private var currentCallType: CallType
+    
+    init(call: Call) {
+        self.call = call
+        self._currentCallType = State(initialValue: call.callType)
+    }
     
     var body: some View {
         ZStack {
@@ -111,11 +118,21 @@ struct IncomingCallView: View {
         .onAppear {
             loadCallerInfo()
             setupCallStatusListener()
+            setupCallTypeListener()
             startTimeoutTimer()
             RingtoneManager.shared.playRingtone(.incoming)
         }
         .onDisappear {
             cleanup()
+        }
+    }
+    
+    private func setupCallTypeListener() {
+        callTypeListener = authService.listenForCallTypeChanges(channelName: call.channelName) { callType in
+            if callType != self.currentCallType {
+                self.currentCallType = callType
+                // You could show an alert here indicating the call type changed
+            }
         }
     }
     

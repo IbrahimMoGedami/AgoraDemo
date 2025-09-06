@@ -21,9 +21,10 @@ class AgoraService: NSObject, ObservableObject {
     @Published var callState: CallState = .idle
     @Published var currentCall: Call?
     @Published var remoteVideoUid: UInt? = nil
+    @Published var isUpgradingToVideo = false
     
     enum CallState {
-        case idle, initiating, ringing, inProgress, ending
+        case idle, initiating, ringing, inProgress, ending, upgrading
     }
     
     private var agoraKit: AgoraRtcEngineKit?
@@ -59,6 +60,56 @@ class AgoraService: NSObject, ObservableObject {
         // Set audio session configuration
         agoraKit?.setAudioSessionOperationRestriction(.all)
         agoraKit?.enableAudioVolumeIndication(200, smooth: 3, reportVad: true)
+    }
+    
+    func upgradeToVideoCall() {
+        guard let agoraKit = agoraKit, currentCall != nil else { return }
+        
+        isUpgradingToVideo = true
+        callState = .upgrading
+        
+        // Enable video publishing
+        let options = AgoraRtcChannelMediaOptions()
+        options.publishCameraTrack = true
+        options.publishMicrophoneTrack = true
+        options.clientRoleType = .broadcaster
+        
+        let result = agoraKit.updateChannel(with: options)
+        if result == 0 {
+            print("Successfully upgraded to video call")
+            // Start local video preview
+            agoraKit.startPreview()
+            isVideoEnabled = true
+            
+            // Update local call state
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.callState = .inProgress
+                self.isUpgradingToVideo = false
+            }
+        } else {
+            print("Failed to upgrade to video call: \(result)")
+            isUpgradingToVideo = false
+            callState = .inProgress
+        }
+    }
+    
+    func downgradeToAudioCall() {
+        guard let agoraKit = agoraKit else { return }
+        
+        // Disable video publishing
+        let options = AgoraRtcChannelMediaOptions()
+        options.publishCameraTrack = false
+        options.publishMicrophoneTrack = true
+        
+        let result = agoraKit.updateChannel(with: options)
+        
+        if result == 0 {
+            print("Successfully downgraded to audio call")
+            isVideoEnabled = false
+            agoraKit.stopPreview()
+        } else {
+            print("Failed to downgrade to audio call: \(result)")
+        }
     }
     
     private func setupAudioSession() {

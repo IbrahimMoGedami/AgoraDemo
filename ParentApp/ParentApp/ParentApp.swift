@@ -44,6 +44,17 @@ struct CallButton: View {
 
 }
 
+extension View {
+    
+    func glow(color: Color = .white, radius: CGFloat = 4) -> some View {
+        self
+            .shadow(color: color, radius: radius / 3)
+            .shadow(color: color, radius: radius / 3)
+            .shadow(color: color, radius: radius / 3)
+    }
+
+}
+
 //struct CallControlButton: View {
 //    
 //    let icon: String

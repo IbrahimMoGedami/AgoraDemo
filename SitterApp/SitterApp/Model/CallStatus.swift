@@ -54,7 +54,7 @@ struct Call: Identifiable {
     let channelName: String
     let status: CallStatus
     let createdAt: Date
-    let callType: CallType
+    var callType: CallType
     let timeoutAt: Date?
     
     init?(from data: [String: Any], id: String) {

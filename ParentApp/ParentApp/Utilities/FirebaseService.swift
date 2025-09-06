@@ -291,7 +291,7 @@ class FirebaseService: ObservableObject {
     
     func getAvailableParents(completion: @escaping (Result<[UserProfile], Error>) -> Void) {
         db.collection(Constants.Collections.users)
-            .whereField(Constants.Fields.status, isEqualTo: UserType.parent.rawValue)
+            .whereField(Constants.Fields.userType, isEqualTo: UserType.parent.rawValue)
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
@@ -321,6 +321,29 @@ class FirebaseService: ObservableObject {
                         completion(call, status)
                     }
                 }
+            }
+    }
+    
+    func updateCallType(channelName: String, callType: CallType, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection(Constants.Collections.calls).document(channelName).updateData([
+            Constants.Fields.callType: callType.rawValue,
+            Constants.Fields.updatedAt: Timestamp(date: Date())
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func listenForCallTypeChanges(channelName: String, completion: @escaping (CallType) -> Void) -> ListenerRegistration {
+        return db.collection(Constants.Collections.calls).document(channelName)
+            .addSnapshotListener { snapshot, error in
+                guard let data = snapshot?.data(),
+                      let callTypeString = data[Constants.Fields.callType] as? String,
+                      let callType = CallType(rawValue: callTypeString) else { return }
+                completion(callType)
             }
     }
     
